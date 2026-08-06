@@ -1,13 +1,8 @@
 #include "tft.hpp"
 
-// ============================================================
-//  global instance
-// ============================================================
+// Global instance
 TFT tft;
 
-// ============================================================
-//  构造 / 析构
-// ============================================================
 TFT::TFT() = default;
 TFT::~TFT()
 {
@@ -15,9 +10,6 @@ TFT::~TFT()
     delete _bus;
 }
 
-// ============================================================
-//  初始化
-// ============================================================
 bool TFT::begin(TFTModel model, uint8_t rotation, bool invert,
                 int8_t sck, int8_t mosi, int8_t miso,
                 int8_t cs, int8_t dc, int8_t rst, int8_t bl)
@@ -25,17 +17,16 @@ bool TFT::begin(TFTModel model, uint8_t rotation, bool invert,
     _model = model;
     _blPin = bl;
 
-    // ---------- 背光 ----------
+    // Backlight
     if (_blPin >= 0)
     {
         pinMode(_blPin, OUTPUT);
         digitalWrite(_blPin, LOW);
     }
 
-    // ---------- 根据型号创建 Bus + GFX ----------
+    // Create Bus + GFX by model
     switch (_model)
     {
-    // ===== ST7789 =====
     case TFTModel::ST7789_240x240:
         _width = 240;
         _height = 240;
@@ -47,7 +38,7 @@ bool TFT::begin(TFTModel model, uint8_t rotation, bool invert,
         _width = 240;
         _height = 240;
         _bus = new Arduino_ESP32SPI(dc, cs, sck, mosi, miso, HSPI);
-        _gfx = new Arduino_ST7789(_bus, rst, rotation, false /* 非 IPS */);
+        _gfx = new Arduino_ST7789(_bus, rst, rotation, false /* non-IPS */);
         break;
 
     case TFTModel::ST7789_320x240:
@@ -57,7 +48,6 @@ bool TFT::begin(TFTModel model, uint8_t rotation, bool invert,
         _gfx = new Arduino_ST7789(_bus, rst, rotation, false);
         break;
 
-    // ===== ILI9341 =====
     case TFTModel::ILI9341:
         _width = 320;
         _height = 240;
@@ -65,7 +55,6 @@ bool TFT::begin(TFTModel model, uint8_t rotation, bool invert,
         _gfx = new Arduino_ILI9341(_bus, rst, rotation);
         break;
 
-    // ===== ST7735 =====
     case TFTModel::ST7735_128x128:
         _width = 128;
         _height = 128;
@@ -82,21 +71,19 @@ bool TFT::begin(TFTModel model, uint8_t rotation, bool invert,
 
     case TFTModel::ST7735_160x80:
     {
-        // ELRS 参考实现：面板原生 80x160，rotation=1 旋转后映射为 160x80
+        // ELRS reference: panel native 80x160, rotation=1 maps to 160x80
         // ips=true, col_offset1/2=26, row_offset1/2=1
         _width = 80;
         _height = 160;
         _bus = new Arduino_ESP32SPI(dc, cs, sck, mosi, miso, HSPI);
-        // rotation 默认传 1（竖屏→横屏），与 ELRS 一致
         uint8_t rot = (rotation == 0) ? 1 : rotation;
-        _gfx = new Arduino_ST7735(_bus, rst, rot, true, // ips=true
-                                  80, 160,              // 面板原生宽高
+        _gfx = new Arduino_ST7735(_bus, rst, rot, true, // ips
+                                  80, 160,              // native panel w,h
                                   26, 1,                // col_offset1, row_offset1
                                   26, 1);               // col_offset2, row_offset2
         break;
     }
 
-    // ===== GC9A01 =====
     case TFTModel::GC9A01:
         _width = 240;
         _height = 240;
@@ -108,11 +95,11 @@ bool TFT::begin(TFTModel model, uint8_t rotation, bool invert,
         return false;
     }
 
-    // ---------- 初始化 ----------
+    // Init
     if (_gfx)
     {
         _gfx->begin();
-        // 从驱动读取旋转后的实际逻辑分辨率
+        // Read back actual logical resolution after rotation
         _width = _gfx->width();
         _height = _gfx->height();
         if (invert)
@@ -123,9 +110,6 @@ bool TFT::begin(TFTModel model, uint8_t rotation, bool invert,
     return false;
 }
 
-// ============================================================
-//  旋转
-// ============================================================
 void TFT::setRotation(uint8_t r)
 {
     if (_gfx) {
@@ -135,9 +119,7 @@ void TFT::setRotation(uint8_t r)
     }
 }
 
-// ============================================================
-//  背光
-// ============================================================
+// Backlight
 void TFT::setBacklight(uint8_t brightness)
 {
     if (_blPin >= 0)
@@ -156,9 +138,7 @@ void TFT::backlightOff()
         digitalWrite(_blPin, LOW);
 }
 
-// ============================================================
-//  绘图
-// ============================================================
+// Drawing
 void TFT::fillScreen(uint16_t color)
 {
     if (_gfx)
@@ -228,9 +208,7 @@ void TFT::fillTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1,
         _gfx->fillTriangle(x0, y0, x1, y1, x2, y2, color);
 }
 
-// ============================================================
-//  文字
-// ============================================================
+// Text
 void TFT::setCursor(int16_t x, int16_t y)
 {
     if (_gfx)
@@ -289,9 +267,7 @@ void TFT::drawCenterString(const char *str, int16_t y, uint16_t color)
     _drawStringInternal(str, 0, y, color, true);
 }
 
-// ============================================================
-//  实用功能
-// ============================================================
+// Utility
 void TFT::drawTitle(const char *title, uint16_t color)
 {
     drawCenterString(title, 0, color);
@@ -325,10 +301,7 @@ void TFT::showInfo(const char *line1, const char *line2, const char *line3)
         drawCenterString(line3, 70, WHITE);
 }
 
-// ============================================================
-//  位图
-// ============================================================
-
+// Bitmaps
 void TFT::drawBitmap(int16_t x, int16_t y, const uint8_t *data,
                      int16_t w, int16_t h, uint16_t color)
 {
@@ -356,39 +329,29 @@ void TFT::drawPageNotify(const char *s, const GFXfont *font,
     if (!_gfx || !s)
         return;
 
-    // 1. 清屏
     fillScreen(BLACK);
 
-    // 2. 设置自定义字体（如果提供）
     if (font)
-    {
         _gfx->setFont(font);
-    }
 
-    // 3. 根据文本长度选择居中或左对齐
     uint8_t len = strlen(s);
     if (len < shortLen)
     {
-        // 短文本：水平居中
+        // Short text: center horizontally
         drawCenterString(s, y, color);
     }
     else
     {
-        // 长文本：左对齐
+        // Long text: left aligned
         setCursor(0, y);
         _gfx->print(s);
     }
 
-    // 4. 恢复默认字体
     if (font)
-    {
-        _gfx->setFont(); // 无参 = 恢复默认字体
-    }
+        _gfx->setFont(); // restore default font
 }
 
-// ============================================================
-//  颜色工具
-// ============================================================
+// Color conversion
 uint16_t TFT::color565(uint8_t r, uint8_t g, uint8_t b)
 {
     return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
