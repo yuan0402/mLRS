@@ -72,6 +72,40 @@
 #include "rx-hal-iflight-elrs-2400-esp8285.h"
 #endif
 
+// DAKEFPV 900MHz RX
+#ifdef RX_ELRS_DAKEFPV_900_ESP32C3
+#include "rx-hal-generic-c3-lr1121-esp32c3.h"
+#endif
+
+//DAKEFPV 2400MHz RX
+#ifdef RX_ELRS_DAKEFPV_2400_ESP32C3
+#include "rx-hal-generic-c3-lr1121-esp32c3.h"
+#endif
+
+// DAKEFPV双频接收器
+#ifdef RX_ELRS_DAKEFPV_LR1121_TD_ESP32C3
+#include "rx-hal-dakefpv-lr1121-td-esp32c3.h"
+#endif 
+
+// DAKEFPV_BR3系列
+#ifdef RX_ELRS_DAKEFPV_LR1121_915PRO_ESP32C3
+#include "rx-hal-dakefpv-900pro-lr1121-esp32c3.h"
+#endif
+
+// DAKEFPV 2.4G高功率接收器配置
+#ifdef RX_ELRS_DAKE2G4_NANOPRO_LR1121_ESP32C3
+#include "rx-hal-generic-c3-lr1121-esp32c3.h"
+#endif
+
+// DAKEFPV高功率接收器配置 superdpro系列
+#ifdef RX_ELRS_DAKEFPV_SUPERDPRO_2400_ESP32C3
+#include "rx-hal-dakefpv-lr1121-td-esp32c3.h"
+#endif
+
+// DAKEFPV高功率接收器配置 900MHz系列
+#ifdef RX_ELRS_DAKEFPV_SUPERDPRO_900_ESP32C3
+#include "rx-hal-dakefpv-lr1121-td-esp32c3.h"
+#endif
 
 //-- ELRS Selected Devices
 
@@ -163,3 +197,12 @@
 #include "tx-hal-flysky-int-pa01-2400-esp32s3.h"
 #endif
 
+//DAKEFPV 2G4/900MHz 1W TX
+#ifdef  TX_ELRS_DAKEFPV_2G4_ESP32
+#include "tx-hal-dakefpv-2g4-esp32.h"
+#endif
+
+//DAKEFPV 900MHz 2W TX
+#ifdef  TX_ELRS_DAKEFPV_900_ESP32
+#include "tx-hal-dakefpv-9002w-esp32.h"
+#endif

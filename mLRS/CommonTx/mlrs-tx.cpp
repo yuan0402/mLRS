@@ -168,8 +168,13 @@ tTxSxSerial sx_serial;
 // doing both every cycle does not work! why ???
 
 #include "../CommonTx/disp.h"
+#include "../CommonTx/disptft.h"
 
+#ifdef USE_TFTDISPLAY
+tTxDispTFT disp;
+#else
 tTxDisp disp;
+#endif
 
 
 //-------------------------------------------------------
@@ -206,7 +211,7 @@ void tWhileTransmit::handle_once(void)
 {
     cli.Do();
 
-#ifdef USE_DISPLAY
+#if defined USE_DISPLAY|| defined USE_TFTDISPLAY
     uint32_t tnow_ms = millis32();
 
     static uint32_t main_tlast_ms = 0;

@@ -319,6 +319,9 @@ extern "C" { void delay_ms(uint16_t ms); }
   #define USE_DRONECAN
 #endif
 
+#if defined DEVICE_HAS_SPI_DISPLAY || defined DEVICE_HAS_SPI_DISPLAY_ROT270
+  #define USE_TFTDISPLAY
+#endif
 
 #if defined DEVICE_HAS_I2C_DISPLAY || defined DEVICE_HAS_I2C_DISPLAY_ROT180
   #define USE_DISPLAY
