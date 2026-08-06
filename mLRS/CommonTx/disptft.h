@@ -122,7 +122,6 @@ public:
     void Draw(void);
     void DrawNotify(const char *const s);
     void DrawBoot(void);
-    void SpinI2C(void);
 
     typedef struct
     {
@@ -594,7 +593,7 @@ void tTxDispTFT::Draw(void)
     }
 }
 
-void tTxDispTFT::SpinI2C(void) {}
+
 
 bool tTxDispTFT::key_has_been_pressed(uint8_t key_idx)
 {
