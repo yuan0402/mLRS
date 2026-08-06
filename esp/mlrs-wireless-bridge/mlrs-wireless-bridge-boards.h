@@ -115,7 +115,7 @@ ESP32:
 shortening GPIO15 to GND suppresses the bootloader preamble on Serial port
 GPIO15 = RTC_GPIO13
 */
-
+// #define DKFPV_BP_C3
 
 //-------------------------------------------------------
 // Module details
@@ -157,8 +157,12 @@ GPIO15 = RTC_GPIO13
 
     #define SERIAL_RXD 20 // = RX1
     #define SERIAL_TXD 21 // = TX1
-
+    #ifdef DKFPV_BP_C3
+        #define LED_IO  8
+        #define USE_LED
+    #else
     #undef LED_IO
+    #endif
     #undef GPIO0_IO
     #define GPIO0_IO  9
     #if WIRELESS_PROTOCOL != 4
