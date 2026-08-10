@@ -94,7 +94,7 @@
 
 // DAKEFPV 2.4G高功率接收器配置
 #ifdef RX_ELRS_DAKE2G4_NANOPRO_LR1121_ESP32C3
-#include "rx-hal-generic-c3-lr1121-esp32c3.h"
+#include "rx-hal-dkfpv-c3-lr1121-esp32c3.h"
 #endif
 
 // DAKEFPV高功率接收器配置 superdpro系列
