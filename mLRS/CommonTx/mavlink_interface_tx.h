@@ -19,6 +19,7 @@
 #define FASTMAVLINK_ROUTER_COMPONENTS_MAX  12
 #define FASTMAVLINK_ROUTER_LINK_PROPERTY_DEFAULT  FASTMAVLINK_ROUTER_LINK_PROPERTY_FLAG_ALWAYS_SEND_HEARTBEAT
 #include "../Common/mavlink/out/lib/fastmavlink_router.h"
+#include "tasks.h"
 
 
 extern volatile uint32_t millis32(void);
@@ -29,6 +30,7 @@ extern tGlobalConfig Config;
 extern tSerialPorts Serials;
 extern tTxCrsf crsf;
 extern tStats stats;
+extern tTxTasks tasks;
 
 
 //#define RADIO_LINK_SYSTEM_ID      51 // SiK uses 51, 68
@@ -73,9 +75,8 @@ class tTxVehicle
 class tTxMavlink
 {
   public:
-    void Init(tSerialBase* const _mbridge);
+    void Init(tSerialBase* const _crsfbridge);
     void Do(void);
-    uint8_t Task(void);
     uint8_t VehicleState(void);
     void FrameLost(void);
 
@@ -148,34 +149,38 @@ class tTxMavlink
 };
 
 
-void tTxMavlink::Init(tSerialBase* const _mbridge)
+void tTxMavlink::Init(tSerialBase* const _crsfbridge)
 {
     // if ChannelsSource = MBRIDGE:
     //   SerialPort = SERIAL or SERIAL2 => router with ser = mbridge & ser2 = serial/serial2
     //   SerialPort = MBRIDGE           => no router, only ser = mbridge (ser2 = null)
     // => ser2 != nullptr indicates that router is to be used
     //
-    // 2\1      | SERIAL         | WBRIDGE/SERIAL2 | COM            | MBRIDGE
-    // ------------------------------------------------------------------------------
-    // NONE     | ser = serial   | ser = serial    | ser = serial   | ser = mbridge
-    //          | ser2 = mbridge | ser2 = mbridge  | ser2 = mbridge | ser2 = null
-    // ------------------------------------------------------------------------------
-    // SERIAL   | should not     | ser = serial    | should not     | ser = mbridge
-    //          | happen         | ser2 = serial2  | happen         | ser2 = serial2
-    // ------------------------------------------------------------------------------
-    // WBRIDGE/ | ser = serial   | should not      | ser = serial   | ser = mbridge
-    // SERIAL2  | ser2 = serial2 | happen          | ser2 = serial2 | ser2 = serial2
-    // ------------------------------------------------------------------------------
+    // 2\1      | SERIAL            | WBRIDGE/SERIAL2   | COM               | CRSF
+    // ----------------------------------------------------------------------------------------
+    // NONE     | ser = serial      | ser = serial2     | ser = com         | ser = crsfbridge
+    //          | ser2 = null       | ser2 = null       | ser2 = null       | ser2 = null
+    // ----------------------------------------------------------------------------------------
+    // SERIAL   | should not        | ser = serial2     | should not        | ser = crsfbridge
+    //          | happen            | ser2 = serial     | happen            | ser2 = serial
+    // ----------------------------------------------------------------------------------------
+    // WBRIDGE/ | ser = serial      | should not        | ser = com         | ser = crsfbridge
+    // SERIAL2  | ser2 = serial2    | happen            | ser2 = serial2    | ser2 = serial2
+    // ----------------------------------------------------------------------------------------
+    // CRSF     | ser = serial      | ser = serial2     | ser = com         | should not
+    //          | ser2 = crsfbridge | ser2 = crsfbridge | ser2 = crsfbridge | happen
+    // ----------------------------------------------------------------------------------------
     switch (Setup.Tx[Config.ConfigId].SerialPort) {
     case TX_SERIAL_PORT_SERIAL:
     case TX_SERIAL_PORT_SERIAL2:
     case TX_SERIAL_PORT_WIRELESS_BRIDGE:
     case TX_SERIAL_PORT_COM:
         ser = Serials.serial; // already sorted out in serialports.Init()
-        ser2 = (Setup.Tx[Config.ConfigId].ChannelsSource == CHANNEL_SOURCE_MBRIDGE) ? _mbridge : nullptr;
+//        ser2 = (Setup.Tx[Config.ConfigId].ChannelsSource == CHANNEL_SOURCE_MBRIDGE) ? _crsfbridge : nullptr;
+        ser2 = nullptr;
         break;
-    case TX_SERIAL_PORT_MBRIDGE:
-        ser = _mbridge;
+    case TX_SERIAL_PORT_CRSF_BRIDGE:
+        ser = _crsfbridge;
         ser2 = nullptr;
         break;
     default:
@@ -188,6 +193,10 @@ void tTxMavlink::Init(tSerialBase* const _mbridge)
     case TX_SERIAL_PORT2_SERIAL2:
     case TX_SERIAL_PORT2_WIRELESS_BRIDGE:
         ser2 = Serials.serial2; // already sorted out in serialports.Init(), can be nullptr
+        break;
+    case TX_SERIAL_PORT2_CRSF_BRIDGE:
+        ser = nullptr;
+        ser2 = _crsfbridge;
         break;
     }
     if (ser == ser2) while(1){} // must not happen
@@ -280,21 +289,16 @@ void tTxMavlink::Do(void)
 
 #ifdef USE_FEATURE_MAVLINK_COMPONENT
     component_do(); // may send to serial_out, so should come last
-#endif
-}
 
-
-uint8_t tTxMavlink::Task(void)
-{
-#ifdef USE_FEATURE_MAVLINK_COMPONENT
     uint8_t task;
     if (component_task(&task)) {
-        return task;
+        // if true, can be TX_TASK_RX_PARAM_SET, TASK_NONE, TX_TASK_PARAM_STORE
+        // TASK_NONE then means to wait with processing of next task
+        if (task != TASK_NONE) tasks.SetMavlinkTask(task);
+        return;
     }
+    task_pending_mask = 0; // should not be needed, but play it safe
 #endif
-
-    task_pending_mask = 0;
-    return MAIN_TASK_NONE;
 }
 
 
@@ -323,7 +327,7 @@ if (!do_router()) {
 } else {
     // with router, parse ser in, ser2 in -> link out
     if (fifo_link_out.HasSpace(290)) { // we have space for a full MAVLink message, so can safely parse
-        // link 0 = sx_serial
+        // link 0 = fifo_link_out
         // link 1 = ser
         // link 2 = ser2
 
@@ -336,7 +340,7 @@ if (!do_router()) {
             char c = ser->getc();
             if (fmav_parse_and_check_to_frame_buf(&result, buf_ser_in, &status_ser_in, c)) {
                 fmav_router_handle_message(1, &result);
-                if (fmav_router_send_to_link(1)) {} // WE DO NOT REFLECT, SO THIS MUST NEVER HAPPEN !!
+                if (fmav_router_send_to_link(1)) {} // DO NOT REFLECT, SO THIS MUST NEVER HAPPEN !!
                 if (fmav_router_send_to_link(2)) {
                     ser2->putbuf(buf_ser_in, result.frame_len);
                 }
@@ -360,7 +364,7 @@ if (!do_router()) {
                 if (fmav_router_send_to_link(1)) {
                     ser->putbuf(buf_ser2_in, result.frame_len);
                 }
-                if (fmav_router_send_to_link(2)) {} // WE DO NOT REFLECT, SO THIS MUST NEVER HAPPEN !!
+                if (fmav_router_send_to_link(2)) {} // DO NOT REFLECT, SO THIS MUST NEVER HAPPEN !!
                 if (result.res == FASTMAVLINK_PARSE_RESULT_OK) {
                     fmav_frame_buf_to_msg(&msg_buf, &result, buf_ser2_in); // requires RESULT_OK
                     if (fmav_router_send_to_link(0)) {
@@ -406,7 +410,7 @@ if (!do_router()) {
             if (fmav_router_send_to_link(2)) {
                 ser2->putbuf(buf_link_in, result.frame_len);
             }
-            if (fmav_router_send_to_link(0)) {} // WE DO NOT REFLECT, SO THIS MUST NEVER HAPPEN !!
+            if (fmav_router_send_to_link(0)) {} // DO NOT REFLECT, SO THIS MUST NEVER HAPPEN !!
 } // end if(do_router())
 
             fmav_frame_buf_to_msg(&msg_buf, &result, buf_link_in); // requires RESULT_OK
@@ -761,7 +765,7 @@ void tTxMavlink::component_handle_msg(fmav_message_t* const msg)
                 // if PSTORE invoke paramstore
                 if (param_idx == MAV_PARAM_PSTORE_IDX && pstore_u8) {
                     pstore_u8 = 0;
-                    task_pending_mask = (1 << TX_TASK_RX_PARAM_SET) | (1 << TX_TASK_PARAM_STORE);
+                    task_pending_mask = (1 << TASK_RX_PARAM_SET) | (1 << TASK_PARAM_STORE);
                     task_pending_delay_ms = millis32();
                     if (task_pending_delay_ms == 0) task_pending_delay_ms = -1; // 0 indicates disabled
                 }
@@ -878,37 +882,37 @@ void tTxMavlink::component_do(void)
 bool tTxMavlink::component_task(uint8_t* const task)
 {
     if (Setup.Tx[Config.ConfigId].MavlinkComponent != TX_MAVLINK_COMPONENT_ENABLED) {
-        *task = MAIN_TASK_NONE;
+        *task = TASK_NONE;
         return false;
     }
 
-    if (task_pending_mask & (1 << TX_TASK_RX_PARAM_SET)) {
-        task_pending_mask &=~ (1 << TX_TASK_RX_PARAM_SET);
-        *task = TX_TASK_RX_PARAM_SET;
+    if (task_pending_mask & (1 << TASK_RX_PARAM_SET)) {
+        task_pending_mask &=~ (1 << TASK_RX_PARAM_SET);
+        *task = TASK_RX_PARAM_SET;
         return true;
     }
 
-    if (task_pending_mask & (1 << TX_TASK_PARAM_STORE)) {
+    if (task_pending_mask & (1 << TASK_PARAM_STORE)) {
         // we need to wait for the previous link task to finish
         // link task is not free in connection stage, so skip if not in connection stage
         if (connected_and_rx_setup_available() && !link_task_free()) {
-            *task = MAIN_TASK_NONE;
+            *task = TASK_NONE;
             return true;
         }
         // delay by 50 ms, so a response message is send
         if (task_pending_delay_ms) {
             if ((millis32() - task_pending_delay_ms) < 50) {
-                *task = MAIN_TASK_NONE;
+                *task = TASK_NONE;
                 return true;
             }
             task_pending_delay_ms = 0;
         }
-        task_pending_mask &=~ (1 << TX_TASK_PARAM_STORE);
-        *task = TX_TASK_PARAM_STORE;
+        task_pending_mask &=~ (1 << TASK_PARAM_STORE);
+        *task = TASK_PARAM_STORE;
         return true;
     }
 
-    *task = MAIN_TASK_NONE;
+    *task = TASK_NONE;
     return false;
 }
 
@@ -1063,25 +1067,23 @@ void tTxVehicle::handle_extended_sys_state(fmav_extended_sys_state_t* const payl
 /*
 sx_serial:
 
-  serial   o --\
-  serial2  o -- o <====> o  sx_serial
-  mbridge  o --/
-  mavlink  o --/
-
-    ---> sx_serial.available() ---> transmit ~~~>
-         sx_serial.putc()
-
-    <--- sx_serial.getc()      <--- receive <~~~
-
+            TxSerialPort
+  serial  o --\ :                  RxLinkMode
+  serial2 o ---\:                      :
+  wbridge o --- o <=====> transp. o --\:
+  com     o ---/          msp     o -- o  sx_serial  ---> sx_serial.available() ---> transmit ~~~>
+  mbridge o --/           mavlink o --/                   sx_serial.putc()
+                                                     <--- sx_serial.getc()      <--- receive <~~~
 
 mavlink (without router):
 
-  serial   o --\                     sx_serial
-  serial2  o -- o <=============> o
-  mbridge  o --/      mavlink        available()  ~~transmit~~>
-                                     getc()
+            TxSerialPort
+  serial  o --\ :
+  serial2 o ---\:
+  wbridge o --- o <====> o mavlink  ---> fifo_link_out ---> available(), getc() ---> sx_serial
+  com     o ---/                    <--- fifo_link_in  <--- getc()              <---
+  mbridge o --/
 
-                                     putc()       <~~receive~~
   Do:
     ser->available()  --->  parse&check  --->  msg_to_buf(X)
     ser->getc()             buf_serial_in      fifo_link_out.PutBuf()

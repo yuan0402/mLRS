@@ -182,7 +182,7 @@ typedef enum {
     TX_SERIAL_PORT_WIRELESS_BRIDGE,
     TX_SERIAL_PORT_SERIAL2,
     TX_SERIAL_PORT_COM,
-    TX_SERIAL_PORT_MBRIDGE,
+    TX_SERIAL_PORT_CRSF_BRIDGE,
     TX_SERIAL_PORT_NUM,
 } TX_SERIAL_PORT_ENUM;
 
@@ -200,6 +200,7 @@ typedef enum {
     TX_SERIAL_PORT2_SERIAL,
     TX_SERIAL_PORT2_WIRELESS_BRIDGE,
     TX_SERIAL_PORT2_SERIAL2,
+    TX_SERIAL_PORT2_CRSF_BRIDGE,
     TX_SERIAL_PORT2_NUM,
 } TX_SERIAL_PORT2_ENUM;
 
@@ -208,7 +209,6 @@ typedef enum {
     CHANNEL_SOURCE_NONE = 0,
     CHANNEL_SOURCE_CRSF, // JR pin5
     CHANNEL_SOURCE_INPORT, // In port
-    CHANNEL_SOURCE_MBRIDGE, // JR pin5
     CHANNEL_SOURCE_NUM,
 } TX_CHANNELS_SOURCE_ENUM;
 
@@ -408,9 +408,9 @@ typedef struct
     uint8_t SerialBaudrate;
     uint8_t SerialLinkMode;
     uint8_t SendRadioStatus;
-    uint8_t __spare1;
+    uint8_t spare1;
     uint8_t SendRcChannels;
-    uint8_t __spare2;
+    uint8_t spare2;
     uint8_t OutLqChannelMode;
     uint8_t PowerSwitchChannel;
     uint8_t SerialPort;
@@ -438,15 +438,12 @@ typedef struct
     uint32_t Version;
     uint16_t Layout;
 
-    // parameters common to both Tx and Rx
-    // deprecated
-    char __spare1[6+1];
-    SETUP_FREQUENCY_BAND_ENUM __spare2;
-    uint8_t __spare3;
+    // auxilliary
+    uint8_t spare[9];
 
     uint8_t _ConfigId; // strange name to avoid mistake
 
-    uint8_t spare[6];
+    uint8_t spare1[6];
 
     // parameters specific to Rx, can be changed on the fly
     // for transmitters this is populated upon first connection, see SetupMetaData.rx_available mechanism
@@ -559,7 +556,6 @@ typedef struct
     bool TransmitUseAntenna2;
     bool IsDualBand;
 
-    bool UseMbridge;
     bool UseCrsf;
     bool UseIn;
 } tGlobalConfig;

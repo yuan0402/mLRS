@@ -287,7 +287,7 @@ void tSerialPorts::Init(uint8_t serial_port, uint32_t baud)
     }
 #elif defined USE_DRONECAN
     serial = &dronecan_port;
-#elif defined USE_SERIAL
+#else // USE_SERIAL or DEVICE_HAS_NO_SERIAL, uartb_port is always defined
     serial = &uartb_port;
 #endif
 
@@ -470,5 +470,7 @@ STATIC_ASSERT(sizeof(tCommonSetup) == 16, "tCommonSetup len missmatch")
 STATIC_ASSERT(sizeof(tSetup) == 22+16+36+(20+16)*SETUP_CONFIG_NUM+8+2, "tSetup len missmatch")
 
 STATIC_ASSERT(sizeof(fhss_config) == sizeof(tFhssConfig) * SX_FHSS_FREQUENCY_BAND_NUM, "fhss_config size missmatch")
+
+STATIC_ASSERT(RFPOWER_LIST_NUM <= sizeof(((tRxCmdFrameRxSetupData *)0)->Power_list)/sizeof(int16_t), "too many power options")
 
 #endif // COMMON_H

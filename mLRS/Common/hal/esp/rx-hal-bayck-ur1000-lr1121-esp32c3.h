@@ -7,7 +7,7 @@
 //********************************************************
 
 //-------------------------------------------------------
-// ESP32, ELRS GENERIC C3 LR1121 Receiver
+// ESP32, Bayck UR1000 LR1121 Receiver
 //-------------------------------------------------------
 
 #define DEVICE_HAS_SINGLE_LED_RGB
@@ -41,6 +41,8 @@
 #define SX_RESET                  IO_P2
 #define SX_DIO                    IO_P1
 #define SX_BUSY                   IO_P3
+
+#define SX_USE_RFSW_CTRL {15, 0, 4, 12, 0, 2, 0, 1}
 
 #define SX_USE_REGULATOR_MODE_DCDC
 
@@ -89,45 +91,47 @@ IRAM_ATTR bool button_pressed(void)
 
 #include "../../setup_types.h" // needed for frequency band condition in rfpower calc
 
+#define SX_USE_LP_PA             // 900 MHz PA is fed from the LP PA output (ELRS radio_rfo_hf)
+
 void lr11xx_rfpower_calc(const int8_t power_dbm, int8_t* sx_power, int8_t* actual_power_dbm, const uint8_t frequency_band)
 {
     if (frequency_band == SX_FHSS_FREQUENCY_BAND_2P4_GHZ) {
-        if (power_dbm >= POWER_20_DBM) { // -> 20
-            *sx_power = 2;
-            *actual_power_dbm = 20;  // xr1 measures about 19 dBm here, further power shows little increase, PA max input is +5 dBm
-        } else if (power_dbm >= POWER_14_DBM) { // -> 14
-            *sx_power = -6;
-            *actual_power_dbm = 14;
-        } else if (power_dbm >= POWER_10_DBM) { // -> 10
-            *sx_power = -11;
-            *actual_power_dbm = 10;
+        if (power_dbm >= POWER_30_DBM) {
+            *sx_power = 3;
+            *actual_power_dbm = 30;
+        } else if (power_dbm >= POWER_27_DBM) {
+            *sx_power = -1;
+            *actual_power_dbm = 27;
+        } else if (power_dbm >= POWER_24_DBM) {
+            *sx_power = -4;
+            *actual_power_dbm = 24;
         } else {
-            *sx_power = -18;
-            *actual_power_dbm = 3;
+            *sx_power = -9;
+            *actual_power_dbm = 20;
         }
     } else {
-        if (power_dbm >= POWER_20_DBM) { // -> 20
-            *sx_power = 22;
-            *actual_power_dbm = 20;
-        } else if (power_dbm >= POWER_14_DBM) { // -> 14
-            *sx_power = 16;
-            *actual_power_dbm = 14;
-        } else if (power_dbm >= POWER_10_DBM) { // -> 10
-            *sx_power = 12;
-            *actual_power_dbm = 10;
+        if (power_dbm >= POWER_30_DBM) {
+            *sx_power = 3;
+            *actual_power_dbm = 30;
+        } else if (power_dbm >= POWER_27_DBM) {
+            *sx_power = -1;
+            *actual_power_dbm = 27;
+        } else if (power_dbm >= POWER_24_DBM) {
+            *sx_power = -4;
+            *actual_power_dbm = 24;
         } else {
-            *sx_power = 5;
-            *actual_power_dbm = 3;
+            *sx_power = -9;
+            *actual_power_dbm = 20;
         }
 
     }
 }
 
-#define RFPOWER_DEFAULT           1 // index into rfpower_list array
+#define RFPOWER_DEFAULT           0 // index into rfpower_list array
 
 const rfpower_t rfpower_list[] = {
-    { .dbm = POWER_3_DBM, .mW = 2 },
-    { .dbm = POWER_10_DBM, .mW = 10 },
-    { .dbm = POWER_14_DBM, .mW = 25 },
     { .dbm = POWER_20_DBM, .mW = 100 },
+    { .dbm = POWER_24_DBM, .mW = 250 },
+    { .dbm = POWER_27_DBM, .mW = 500 },
+    { .dbm = POWER_30_DBM, .mW = 1000 },
 };
