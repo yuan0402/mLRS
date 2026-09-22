@@ -132,7 +132,7 @@ IRAM_ATTR bool button_pressed(void)
 
 #define LED_RGB                   IO_P8  // RGB LED引脚
 #define LED_RGB_PIXEL_NUM         1      // LED像素数量
-#include "../esp-hal-led-rgb.h"  // 包含RGB LED驱动头文件
+#include "esp-hal-led-rgb.h"  // 包含RGB LED驱动头文件
 
 
 //-- 射频功率配置

@@ -13,7 +13,6 @@
 #define DEVICE_HAS_SINGLE_LED_RGB
 #define DEVICE_HAS_COM_ON_SERIAL
 #define DEVICE_HAS_FAN_ONOFF
-#define DEVICE_HAS_ESP_WIFI_BRIDGE
 #define DEVICE_HAS_ESP_WIFI_BRIDGE_CONFIGURE
 #define DEVICE_HAS_ESP_WIFI_BRIDGE_ESP32C3
 #define DEVICE_HAS_SPI_DISPLAY
@@ -145,7 +144,7 @@ IRAM_ATTR bool button2_pressed(void) { return gpio_read_activelow(BUTTON2) ? tru
 //-- LED
 #define LED_RGB                IO_P21
 #define LED_RGB_PIXEL_NUM      1
-#include "../esp-hal-led-rgb.h"
+#include "esp-hal-led-rgb.h"
 
 #ifdef DEVICE_HAS_COM_ON_SERIAL
 
@@ -173,7 +172,7 @@ IRAM_ATTR void fan_set_power(int8_t power_dbm)
 }
 
 //-- ESP WiFi Bridge
-#ifdef DEVICE_HAS_ESP_WIFI_BRIDGE
+#ifdef DEVICE_HAS_ESP_WIFI_BRIDGE_ESP32C3
 
 #define ESP_RESET              IO_P25
 #define ESP_GPIO0              IO_P15

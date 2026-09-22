@@ -31,7 +31,7 @@ public:
 #include <stdlib.h>
 #include <ctype.h>
 #include "../Common/thirdparty/mlrs-logo.h"
-#include "../Common/tasks.h"
+#include "tasks.h"
 #include "../Common/thirdparty/tft.hpp"
 // #include "../Common/thirdparty/log.hpp"
 
@@ -42,7 +42,7 @@ extern tSetupMetaData SetupMetaData;
 extern tSetup Setup;
 extern tGlobalConfig Config;
 extern tTxInfo info;
-extern tTasks tasks;
+extern tTxTasks tasks;
 extern TFT tft;
 
 #define DISP_START_PAGE_TMO_MS SYSTICK_DELAY_MS(1500)
@@ -286,7 +286,7 @@ void tTxDispTFT::Init(void)
     idx_max = 0;
     idx_focused_in_edit = false;
     idx_focused_pos = 0;
-    edit_setting_task_pending = MAIN_TASK_NONE;
+    edit_setting_task_pending = TASK_NONE;
 }
 
 void tTxDispTFT::load_rx_list(void)
@@ -469,9 +469,9 @@ void tTxDispTFT::Tick_ms(void)
         {
             idx_focused_in_edit = false;
             page_modified = true;
-            if (edit_setting_task_pending != MAIN_TASK_NONE)
+            if (edit_setting_task_pending != TASK_NONE)
                 tasks.SetDisplayTask(edit_setting_task_pending);
-            edit_setting_task_pending = MAIN_TASK_NONE;
+            edit_setting_task_pending = TASK_NONE;
         }
     }
 }
@@ -514,16 +514,16 @@ void tTxDispTFT::run_action(void)
     case DISP_ACTION_STORE:
         page = PAGE_NOTIFY_STORE;
         page_modified = true;
-        tasks.SetDisplayTask(TX_TASK_PARAM_STORE);
+        tasks.SetDisplayTask(TASK_PARAM_STORE);
         break;
     case DISP_ACTION_BIND:
-        tasks.SetDisplayTask(MAIN_TASK_BIND_START);
+        tasks.SetDisplayTask(TASK_BIND_START);
         break;
     case DISP_ACTION_BOOT:
-        tasks.SetDisplayTask(MAIN_TASK_SYSTEM_BOOT);
+        tasks.SetDisplayTask(TASK_SYSTEM_BOOT);
         break;
     case DISP_ACTION_FLASH_ESP:
-        tasks.SetDisplayTask(TX_TASK_FLASH_ESP);
+        tasks.SetDisplayTask(TASK_ESPBRIDGE_FLASH);
         break;
     }
 }
@@ -1188,7 +1188,7 @@ bool tTxDispTFT::edit_setting(void)
         }
     }
     if (rxc)
-        edit_setting_task_pending = TX_TASK_RX_PARAM_SET;
+        edit_setting_task_pending = TASK_RX_PARAM_SET;
     return false;
 }
 
