@@ -13,7 +13,7 @@
 -- Tables are less efficient memory and cpu wise, but are being used to avoid the 200 local limit.
 
 local VERSION = {
-    script = '2026-09-24', -- add a '.01' if needed for the day
+    script = '2026-10-05', -- add a '.01' if needed for the day
     required_tx_version_int = 10303,  -- 'v1.3.03'
     required_rx_version_int = 10303,  -- 'v1.3.03'
 }
@@ -369,9 +369,9 @@ local function drawPopup()
     lcd.drawFilledRectangle(LAYOUT.POPUP_X-2, LAYOUT.POPUP_Y-2, LAYOUT.POPUP_W+4, LAYOUT.POPUP_H+4, THEME.textColor)
     if POPUP.is_error then
         lcd.drawFilledRectangle(LAYOUT.POPUP_X, LAYOUT.POPUP_Y, LAYOUT.POPUP_W, LAYOUT.POPUP_H, COLOR_THEME_WARNING)
-    else    
+    else
         lcd.drawFilledRectangle(LAYOUT.POPUP_X, LAYOUT.POPUP_Y, LAYOUT.POPUP_W, LAYOUT.POPUP_H, THEME.titleBgColor)
-    end    
+    end
 
     local i = string.find(POPUP.text, "\n")
     local attr = THEME.menuTitleColor + MIDSIZE + CENTER
@@ -629,8 +629,8 @@ local function countCommonParams()
     local count = 0
     for i = 0, #DEVICE_PARAM_LIST - 1 do
         local param = DEVICE_PARAM_LIST[i]
-        local prefix = string.sub(param.name, 1, 2) 
-        if prefix ~= "Tx" and prefix ~= "Rx" then -- no need to check for if param ~= nil and param.name ~= nil and       
+        local prefix = string.sub(param.name, 1, 2)
+        if prefix ~= "Tx" and prefix ~= "Rx" then -- no need to check for if param ~= nil and param.name ~= nil and
             count = count + 1
         end
     end
@@ -641,30 +641,32 @@ local function doParamLoop()
     -- trigger getting device items and param items
     local t_10ms = getTime()
     if t_10ms - paramloop_t_last > 33 then -- was 10 = 100 ms
-      paramloop_t_last = t_10ms
-      if t_10ms < DEVICE_SAVE_t_last + paramLoadDeadTime_10ms then
-          -- skip, we don't send a cmd if the last Save was recent
-          -- TODO: we could make deadtime dependend on whether a receiver was connected before the Save
-      elseif DEVICE_ITEM_TX == nil then
-          cmdPush(MBRIDGE_CMD.REQUEST_INFO, {}) -- triggers sending DEVICE_ITEM_TX, DEVICE_ITEM_RX, DEVICE_INFO
-          --cmdPush(MBRIDGE_CMD.REQUEST_CMD, {MBRIDGE_CMD.REQUEST_INFO) -- alternative command for the same effect
-          -- these should have been set when we nil-ed DEVICE_PARAM_LIST
-          DEVICE_PARAM_LIST_expected_index = 0
-          DEVICE_PARAM_LIST_current_index = -1
-          DEVICE_PARAM_LIST_errors = 0
-          DEVICE_PARAM_LIST_complete = false
-          DEVICE_PARAM_LIST_common_count = 0
-      elseif DEVICE_PARAM_LIST == nil then
-          if DEVICE_INFO ~= nil then -- wait for DEVICE_INFO to be populated, indicates that MBRIDGE_CMD.REQUEST_INFO is completed
-              DEVICE_PARAM_LIST = {}
-              -- Old:
-              --cmdPush(MBRIDGE_CMD.PARAM_REQUEST_LIST, {}) -- triggers sending full list of PARAM_ITEMs
-              --cmdPush(MBRIDGE_CMD.REQUEST_CMD, {MBRIDGE_CMD.PARAM_REQUEST_LIST}) -- alternative command for the same effect
-              -- New: request parameters by index (request-response protocol)
-              -- request first parameter by index (is index = 0)
-              cmdPush(MBRIDGE_CMD.REQUEST_CMD, {MBRIDGE_CMD.PARAM_ITEM, DEVICE_PARAM_LIST_expected_index})
-          end
-      end
+        paramloop_t_last = t_10ms
+        if t_10ms < DEVICE_SAVE_t_last + paramLoadDeadTime_10ms then
+            -- skip, we don't send a cmd if the last Save was recent
+            -- TODO: we could make deadtime dependend on whether a receiver was connected before the Save
+        elseif DEVICE_ITEM_TX == nil then
+            cmdPush(MBRIDGE_CMD.REQUEST_INFO, {}) -- triggers sending DEVICE_ITEM_TX, DEVICE_ITEM_RX, DEVICE_INFO
+            --cmdPush(MBRIDGE_CMD.REQUEST_CMD, {MBRIDGE_CMD.REQUEST_INFO) -- alternative command for the same effect
+            -- these should have been set when we nil-ed DEVICE_PARAM_LIST
+            DEVICE_PARAM_LIST_expected_index = 0
+            DEVICE_PARAM_LIST_current_index = -1
+            DEVICE_PARAM_LIST_errors = 0
+            DEVICE_PARAM_LIST_complete = false
+            DEVICE_PARAM_LIST_common_count = 0
+        elseif DEVICE_PARAM_LIST == nil then
+            if DEVICE_INFO ~= nil then -- wait for DEVICE_INFO to be populated, indicates that MBRIDGE_CMD.REQUEST_INFO is completed
+                DEVICE_PARAM_LIST = {}
+                -- Old:
+                --cmdPush(MBRIDGE_CMD.PARAM_REQUEST_LIST, {}) -- triggers sending full list of PARAM_ITEMs
+                --cmdPush(MBRIDGE_CMD.REQUEST_CMD, {MBRIDGE_CMD.PARAM_REQUEST_LIST}) -- alternative command for the same effect
+                -- New: request parameters by index (request-response protocol)
+                -- request first parameter by index (is index = 0)
+                cmdPush(MBRIDGE_CMD.REQUEST_CMD, {MBRIDGE_CMD.PARAM_ITEM, DEVICE_PARAM_LIST_expected_index})
+            end
+        elseif DEVICE_DOWNLOAD_is_running then
+            cmdPush(MBRIDGE_CMD.REQUEST_CMD, {MBRIDGE_CMD.PARAM_ITEM, DEVICE_PARAM_LIST_expected_index}) -- retry
+        end
     end
 
     -- handle received commands
@@ -706,6 +708,7 @@ local function doParamLoop()
             deviceInfoRxIsAvailable = (DEVICE_INFO.rx_available == 1) -- to signal if reciever is available
         elseif cmd.cmd == MBRIDGE_CMD.PARAM_ITEM then
             -- MBRIDGE_CMD.PARAM_ITEM
+            paramloop_t_last = t_10ms -- reset for retry
             local index = cmd.payload[0]
             if index ~= DEVICE_PARAM_LIST_expected_index and index ~= 255 then
                 paramsError()
@@ -714,18 +717,8 @@ local function doParamLoop()
             DEVICE_PARAM_LIST_expected_index = index + 1 -- prepare for next
             if DEVICE_PARAM_LIST == nil then
                 paramsError()
-            elseif index < 128 then
-                DEVICE_PARAM_LIST[index] = cmd
-                DEVICE_PARAM_LIST[index].typ = mb_to_u8(cmd.payload, 1)
-                DEVICE_PARAM_LIST[index].name = mb_to_string(cmd.payload, 2, 16)
-                DEVICE_PARAM_LIST[index].value = mb_to_value_or_str6(cmd.payload, 18, DEVICE_PARAM_LIST[index].typ)
-                DEVICE_PARAM_LIST[index].min = 0
-                DEVICE_PARAM_LIST[index].max = 0
-                DEVICE_PARAM_LIST[index].unit = ""
-                DEVICE_PARAM_LIST[index].options = {}
-                DEVICE_PARAM_LIST[index].allowed_mask = 65536
-                DEVICE_PARAM_LIST[index].editable = true
-            elseif index == 255 then -- EOL (end of list)
+            elseif index == 255 or (index < 128 and not connected and string.sub(mb_to_string(cmd.payload, 2, 16), 1, 2) == "Rx") then
+                -- EOL (end of list), or first Rx param without receiver (reload happens on connect)
                 if DEVICE_PARAM_LIST_errors == 0 then
                     updateDeviceParamCounts(2)
                     DEVICE_PARAM_LIST_complete = true
@@ -737,11 +730,23 @@ local function doParamLoop()
                     setPopupWTmo("Param Upload Errors ("..tostring(DEVICE_PARAM_LIST_errors)..")!\nTry Reload", 200)
                 end
                 DEVICE_DOWNLOAD_is_running = false
+            elseif index < 128 then
+                DEVICE_PARAM_LIST[index] = cmd
+                DEVICE_PARAM_LIST[index].typ = mb_to_u8(cmd.payload, 1)
+                DEVICE_PARAM_LIST[index].name = mb_to_string(cmd.payload, 2, 16)
+                DEVICE_PARAM_LIST[index].value = mb_to_value_or_str6(cmd.payload, 18, DEVICE_PARAM_LIST[index].typ)
+                DEVICE_PARAM_LIST[index].min = 0
+                DEVICE_PARAM_LIST[index].max = 0
+                DEVICE_PARAM_LIST[index].unit = ""
+                DEVICE_PARAM_LIST[index].options = {}
+                DEVICE_PARAM_LIST[index].allowed_mask = 65536
+                DEVICE_PARAM_LIST[index].editable = true
             else
                 paramsError()
             end
         elseif cmd.cmd == MBRIDGE_CMD.PARAM_ITEM2 then
             -- MBRIDGE_CMD.PARAM_ITEM2
+            paramloop_t_last = t_10ms -- reset for retry
             local index = cmd.payload[0]
             if index ~= DEVICE_PARAM_LIST_current_index then
                 paramsError()
@@ -775,6 +780,7 @@ local function doParamLoop()
             end
         elseif cmd.cmd == MBRIDGE_CMD.PARAM_ITEM3_4 then -- can be ITEM3 or ITEM4
             -- MBRIDGE_CMD.PARAM_ITEM3_4
+            paramloop_t_last = t_10ms -- reset for retry
             local index = cmd.payload[0]
             local is_item4 = false
             if (index >= 128) then -- this is actually ITEM4
@@ -1198,7 +1204,6 @@ end
 ----------------------------------------------------------------------
 
 local isEdgeTx = false
-local isAX12 = false
 local isFirstParamDownload = true
 local FirstParamDownloadTmo_10ms = 0
 
@@ -1458,8 +1463,7 @@ local function doPageMain(event)
             if CURSOR.idx > IDX.MAIN_CURSOR_IDX_MAX then CURSOR.idx = IDX.MAIN_CURSOR_IDX_MAX end
             if CURSOR.idx >= DEVICE_PARAM_LIST_common_count and CURSOR.idx <= IDX.COMMON_PARAM_IDX_MAX then
                 CURSOR.idx = IDX.COMMON_PARAM_IDX_MAX + 1
-                
-            end            
+            end
             if CURSOR.idx == IDX.Mode_idx and not param_focusable(1) then CURSOR.idx = CURSOR.idx + 1 end
             if CURSOR.idx == IDX.RFBand_idx and not param_focusable(2) then CURSOR.idx = CURSOR.idx + 1 end
             if CURSOR.idx == IDX.RFOrtho_idx and not param_focusable(3) then CURSOR.idx = CURSOR.idx + 1 end
@@ -1470,7 +1474,7 @@ local function doPageMain(event)
             if CURSOR.idx < 0 then CURSOR.idx = 0 end
             if CURSOR.idx >= DEVICE_PARAM_LIST_common_count and CURSOR.idx <= IDX.COMMON_PARAM_IDX_MAX then
                 CURSOR.idx = DEVICE_PARAM_LIST_common_count - 1
-            end            
+            end
             if CURSOR.idx == IDX.EditRx_idx and not connected then CURSOR.idx = CURSOR.idx - 1 end
             if CURSOR.idx == IDX.Privacy_idx and not param_focusable(4) then CURSOR.idx = CURSOR.idx - 1 end
             if CURSOR.idx == IDX.RFOrtho_idx and not param_focusable(3) then CURSOR.idx = CURSOR.idx - 1 end
@@ -1535,14 +1539,14 @@ local function Do(event)
 
     doParamLoop()
 
-    if DEVICE_DOWNLOAD_is_running then
+    if DEVICE_PARAM_LIST == nil then -- DEVICE_INFO not yet received
         if isFirstParamDownload and FirstParamDownloadTmo_10ms > 0 then
             if getTime() > FirstParamDownloadTmo_10ms then
-                setPopupError("Please check if\nCRSF baudrate is 400k")                
+                setPopupError("Please check if\nCRSF baudrate is 400k")
                 FirstParamDownloadTmo_10ms = 0 -- disable
             end
         end
-    else    
+    else
         isFirstParamDownload = false
     end
 
@@ -1564,13 +1568,12 @@ end
 
 
 ----------------------------------------------------------------------
--- Script OTX Interface
+-- Script EdgeTx Interface
 ----------------------------------------------------------------------
 
 local function scriptInit()
     local ver, radio, maj, minor, rev, osname = getVersion()
     isEdgeTx = (osname == 'EdgeTX')
-    isAX12 = (osname == 'EdgeTXqw')
 
     setupScreen()
     setupColors()
@@ -1581,9 +1584,6 @@ local function scriptInit()
     DEVICE_DOWNLOAD_is_running = true -- we start the script with this
     isFirstParamDownload = true
     FirstParamDownloadTmo_10ms = tnow_10ms + 500 -- drop a warning after 5 secs
-    if isAX12 then
-        FirstParamDownloadTmo_10ms = FirstParamDownloadTmo_10ms + 300 -- for AX12, drop a warning after 8 secs
-    end
     if tnow_10ms < 300 then
         DEVICE_SAVE_t_last = 300 - tnow_10ms -- treat script start like a Save
     else
