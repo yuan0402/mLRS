@@ -162,7 +162,9 @@ GPIO15 = RTC_GPIO13
         #define USE_LED
     #else
     #undef LED_IO
-    #endif
+    #define LED_IO  8
+    #define USE_LED
+
     #undef GPIO0_IO
     #define GPIO0_IO  9
     #if WIRELESS_PROTOCOL != 4
