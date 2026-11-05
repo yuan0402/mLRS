@@ -44,7 +44,7 @@
 
 // SX1模块引脚定义
 #define SX_BUSY IO_P3  // 忙状态引脚
-#define SX_DIO1 IO_P1  // 数字IO1引脚(用于中断)
+#define SX_DIO IO_P1  // 数字IO1引脚(用于中断)
 #define SX_RESET IO_P2 // 复位引脚
 
 // 电源模式配置
@@ -58,7 +58,7 @@ IRQHANDLER(void SX_DIO_EXTI_IRQHandler(void);)
  */
 void sx_init_gpio(void)
 {
-  gpio_init(SX_DIO1, IO_MODE_INPUT_ANALOG);   // DIO1配置为模拟输入模式
+  gpio_init(SX_DIO, IO_MODE_INPUT_ANALOG);   // DIO1配置为模拟输入模式
   gpio_init(SX_BUSY, IO_MODE_INPUT_ANALOG);   // BUSY配置为模拟输入模式
   gpio_init(SX_RESET, IO_MODE_OUTPUT_PP_LOW); // RESET配置为推挽输出，初始低电平
 }
@@ -87,7 +87,7 @@ IRAM_ATTR void sx_amp_receive(void) {}
  */
 void sx_dio_init_exti_isroff(void)
 {
-  detachInterrupt(SX_DIO1); // 分离DIO1中断
+  detachInterrupt(SX_DIO); // 分离DIO1中断
 }
 
 /**
@@ -95,7 +95,7 @@ void sx_dio_init_exti_isroff(void)
  */
 void sx_dio_enable_exti_isr(void)
 {
-  attachInterrupt(SX_DIO1, SX_DIO_EXTI_IRQHandler, RISING); // 在上升沿触发中断
+  attachInterrupt(SX_DIO, SX_DIO_EXTI_IRQHandler, RISING); // 在上升沿触发中断
 }
 
 /**
@@ -108,7 +108,7 @@ IRAM_ATTR void sx_dio_exti_isr_clearflag(void) {}
 // SX2模块引脚定义(共用SPI总线，使用不同的片选)
 #define SX2_CS_IO IO_P7  // SPI片选引脚(第二个模块)
 #define SX2_BUSY IO_P8   // 忙状态引脚
-#define SX2_DIO1 IO_P18  // 数字IO1引脚(用于中断)
+#define SX2_DIO IO_P18  // 数字IO1引脚(用于中断)
 #define SX2_RESET IO_P10 // 复位引脚
 
 // 电源模式配置
@@ -123,7 +123,7 @@ IRQHANDLER(void SX2_DIO_EXTI_IRQHandler(void);)
 void sx2_init_gpio(void)
 {
   gpio_init(SX2_CS_IO, IO_MODE_OUTPUT_PP_HIGH); // CS初始化为推挽输出高电平
-  gpio_init(SX2_DIO1, IO_MODE_INPUT_ANALOG);    // DIO1配置为模拟输入模式
+  gpio_init(SX2_DIO, IO_MODE_INPUT_ANALOG);    // DIO1配置为模拟输入模式
   gpio_init(SX2_BUSY, IO_MODE_INPUT_ANALOG);    // BUSY配置为模拟输入模式
   gpio_init(SX2_RESET,
             IO_MODE_OUTPUT_PP_LOW); // RESET配置为推挽输出，初始低电平
@@ -169,7 +169,7 @@ IRAM_ATTR void sx2_amp_receive(void) {}
  */
 void sx2_dio_init_exti_isroff(void)
 {
-  detachInterrupt(SX2_DIO1); // 分离DIO1中断
+  detachInterrupt(SX2_DIO); // 分离DIO1中断
 }
 
 /**
@@ -177,7 +177,7 @@ void sx2_dio_init_exti_isroff(void)
  */
 void sx2_dio_enable_exti_isr(void)
 {
-  attachInterrupt(SX2_DIO1, SX2_DIO_EXTI_IRQHandler,
+  attachInterrupt(SX2_DIO, SX2_DIO_EXTI_IRQHandler,
                   RISING); // 在上升沿触发中断
 }
 

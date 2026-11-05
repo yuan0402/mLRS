@@ -425,7 +425,6 @@ void tTxDispTFT::Tick_ms(void)
             if (idx_focused < idx_first)
                 idx_first = 0;
             page_modified = true;
-            page_modified = true;
             subpage++;
             if (subpage > subpage_max) subpage = 0;
             page_modified = true;
@@ -757,7 +756,7 @@ void tTxDispTFT::draw_page_main_sub0(void)
         _setcurXY(58, 8);
     _puts(s);
     _setcurX(99);
-    power = sx.RfPower_dbm();
+    power = SX_OR_SX2(sx.RfPower_dbm(), sx2.RfPower_dbm());
     if (power >= -9)
     {
         stoBCDstr(power, s);
@@ -819,13 +818,13 @@ void tTxDispTFT::draw_page_main_sub1(void)
     param_get_val_formattedstr(s, PARAM_INDEX_MODE);
     _puts(s);
     _setcurX(80 + 5);
-    stoBCDstr(sx.ReceiverSensitivity_dbm(), s);
+    stoBCDstr(SX_OR_SX2(sx.ReceiveSensitivity_dbm(), sx2.ReceiveSensitivity_dbm()), s);
     _puts(s);
     _puts(" dB");
     _setcurXY(0, 1 * 10 + DISP_CONTENT_Y_BASE);
     _puts("Power");
     _setcurX(40);
-    stoBCDstr(sx.RfPower_dbm(), s);
+    stoBCDstr(SX_OR_SX2(sx.RfPower_dbm(), sx2.RfPower_dbm()), s);
     _puts(s);
     _setcurX(80);
     stoBCDstr(SetupMetaData.rx_actual_power_dbm, s);
@@ -1005,8 +1004,8 @@ void tTxDispTFT::draw_page_common(void)
     char es[8];
     if (except_str_from_bindphrase(es, Setup.Common[Config.ConfigId].BindPhrase, Config.FrequencyBand))
     {
-        _setcurXY(0, 4 * 10 + DISP_CONTENT_Y_BASE);
-        _puts("except ");
+        _setcurXY(91, 6);
+        _puts("e:");
         _puts(es);
     }
 }
@@ -1024,10 +1023,20 @@ void tTxDispTFT::draw_page_rx(void)
     if (!page_modified)
         return;
     draw_header("Rx");
-    if (!connected())
+    if (!connected_and_rx_setup_available())
     {
         _setcurY(DISP_CONTENT_Y_BASE + 10);
         _puts_XCentered("not connected!");
+        return;
+    }
+    if (SetupMetaData.rx_setup_layout < SETUPLAYOUT || SETUPLAYOUT < SetupMetaData.rx_setup_layout)
+    {
+        _setcurY(DISP_CONTENT_Y_BASE + 10);
+        _puts_XCentered("not editable");
+        _setcurY(2 * 10 + DISP_CONTENT_Y_BASE + 4);
+        _puts_XCentered("parameter version");
+        _setcurY(3 * 10 + DISP_CONTENT_Y_BASE + 4);
+        _puts_XCentered("mismatch");
         return;
     }
     draw_options(&rx_list);
@@ -1040,40 +1049,22 @@ void tTxDispTFT::draw_page_actions(void)
     draw_header("Actions");
     tft.setTextSize(2);
     _fontSize = 2;
-    uint8_t idx = 0;
-    _setcurXY(5, idx * 16 + DISP_CONTENT_Y_BASE + 5);
-    if (idx == idx_focused)
-        _setinverted();
-    _puts("STORE");
-    _unsetinverted();
-    idx++;
-    _setcurXY(5, idx * 16 + DISP_CONTENT_Y_BASE + 5);
-    if (idx == idx_focused)
-        _setinverted();
-    _puts("BIND");
-    _unsetinverted();
-    idx++;
-    if ((idx < DISP_ACTION_NUM) && (disp_actions[idx] == DISP_ACTION_FLASH_ESP))
+    for (uint8_t idx = 0; idx < DISP_ACTION_NUM; idx++)
     {
         _setcurXY(5, idx * 16 + DISP_CONTENT_Y_BASE + 5);
         if (idx == idx_focused)
             _setinverted();
-        _puts("FLASH ");
-        _movecurX(-2);
-        _puts("ESP");
+        switch (disp_actions[idx])
+        {
+        case DISP_ACTION_STORE: _puts("STORE"); break;
+        case DISP_ACTION_BIND: _puts("BIND"); break;
+        case DISP_ACTION_BOOT: _puts("BOOT"); break;
+        case DISP_ACTION_FLASH_ESP: _puts("FLASH ESP"); break;
+        }
         _unsetinverted();
-        idx++;
     }
     tft.setTextSize(1);
     _fontSize = 1;
-    if ((idx < DISP_ACTION_NUM) && (disp_actions[idx] == DISP_ACTION_BOOT))
-    {
-        _setcurXY(75, 0 * 11 + DISP_CONTENT_Y_BASE + 5);
-        if (idx == idx_focused)
-            _setinverted();
-        _puts("BOOT");
-        _unsetinverted();
-    }
 }
 
 bool tTxDispTFT::edit_setting(void)

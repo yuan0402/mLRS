@@ -77,6 +77,11 @@
 #include "rx-hal-generic-c3-lr1121-esp32c3.h"
 #endif
 
+// DAKEFPV 433MHz RX
+#ifdef RX_ELRS_DAKEFPV_433_ESP32C3
+#include "rx-hal-generic-c3-lr1121-esp32c3.h"
+#endif
+
 //DAKEFPV 2400MHz RX
 #ifdef RX_ELRS_DAKEFPV_2400_ESP32C3
 #include "rx-hal-generic-c3-lr1121-esp32c3.h"
@@ -97,6 +102,11 @@
 #include "rx-hal-dkfpv-c3-lr1121-esp32c3.h"
 #endif
 
+// DAKEFPV 433高功率接收器配置
+#ifdef RX_ELRS_DAKE433_NANOPRO_LR1121_ESP32C3
+#include "rx-hal-dkfpv-c3-lr1121-esp32c3.h"
+#endif
+
 // DAKEFPV高功率接收器配置 superdpro系列
 #ifdef RX_ELRS_DAKEFPV_SUPERDPRO_2400_ESP32C3
 #include "rx-hal-dakefpv-lr1121-td-esp32c3.h"
@@ -104,6 +114,26 @@
 
 // DAKEFPV高功率接收器配置 900MHz系列
 #ifdef RX_ELRS_DAKEFPV_SUPERDPRO_900_ESP32C3
+#include "rx-hal-dakefpv-lr1121-td-esp32c3.h"
+#endif
+
+// DAKEFPV 900/2400 dualband pro RX
+#ifdef RX_ELRS_DAKEFPV_LR1121_DUALBAND_PRO_ESP32C3
+#include "rx-hal-dakefpv-lr1121-td-esp32c3.h"
+#endif
+
+// DAKEFPV 2.4G SUPERD 接收器配置
+#ifdef RX_ELRS_DAKEFPV_SUPERD_2400_ESP32C3
+#include "rx-hal-dakefpv-lr1121-td-esp32c3.h"
+#endif
+
+// DAKEFPV 433 SUPERD 接收器配置
+#ifdef RX_ELRS_DAKEFPV_SUPERD_433_ESP32C3
+#include "rx-hal-dakefpv-lr1121-td-esp32c3.h"
+#endif
+
+// DAKEFPV 915 SUPERD 接收器配置
+#ifdef RX_ELRS_DAKEFPV_SUPERD_915_ESP32C3
 #include "rx-hal-dakefpv-lr1121-td-esp32c3.h"
 #endif
 
@@ -209,4 +239,9 @@
 //DAKEFPV 900MHz 2W TX
 #ifdef  TX_ELRS_DAKEFPV_900_ESP32
 #include "tx-hal-dakefpv-9002w-esp32.h"
+#endif
+
+//DAKEFPV 433MHz TX
+#ifdef  TX_ELRS_DAKEFPV_433_ESP32
+#include "tx-hal-dakefpv-433-esp32.h"
 #endif

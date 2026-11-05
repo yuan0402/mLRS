@@ -46,7 +46,7 @@
 
 // LR11xx芯片控制引脚
 #define SX_BUSY                   IO_P3   // 芯片忙状态引脚
-#define SX_DIO1                   IO_P1   // 数字IO引脚1 (用于中断)
+#define SX_DIO                   IO_P1   // 数字IO引脚1 (用于中断)
 #define SX_RESET                  IO_P2   // 芯片复位引脚
 #define SX_ANT                    IO_P10  // 天线选择引脚
 #define SX_USE_LP_PA                      // 使用低功率放大器 (针对 900MHz 频段)
@@ -61,7 +61,7 @@ IRQHANDLER(void SX_DIO_EXTI_IRQHandler(void);)
  */
 void sx_init_gpio(void)
 {
-    gpio_init(SX_DIO1, IO_MODE_INPUT_ANALOG);   // 初始化DIO1为模拟输入模式
+    gpio_init(SX_DIO, IO_MODE_INPUT_ANALOG);   // 初始化DIO1为模拟输入模式
     gpio_init(SX_BUSY, IO_MODE_INPUT_ANALOG);   // 初始化BUSY为模拟输入模式
     gpio_init(SX_RESET, IO_MODE_OUTPUT_PP_LOW); // 初始化RESET为推挽输出，初始低电平
     gpio_init(SX_ANT, IO_MODE_OUTPUT_PP_HIGH);  // 强制使用天线2，与按钮一致
@@ -91,7 +91,7 @@ IRAM_ATTR void sx_amp_receive(void) {}
  */
 void sx_dio_init_exti_isroff(void)
 {
-    detachInterrupt(SX_DIO1);  // 分离DIO1的中断
+    detachInterrupt(SX_DIO);  // 分离DIO1的中断
 }
 
 /**
@@ -99,7 +99,7 @@ void sx_dio_init_exti_isroff(void)
  */
 void sx_dio_enable_exti_isr(void)
 {
-    attachInterrupt(SX_DIO1, SX_DIO_EXTI_IRQHandler, RISING);  // 附加上升沿触发中断
+    attachInterrupt(SX_DIO, SX_DIO_EXTI_IRQHandler, RISING);  // 附加上升沿触发中断
 }
 
 /**

@@ -19,6 +19,74 @@ local VERSION = {
 }
 
 
+----------------------------------------------------------------------
+-- Language (i18n): English / Chinese, switchable from the Tools page.
+-- The selection is stored in Global Variable 9 (flight mode 0):
+-- 0 = English, 1 = Chinese
+----------------------------------------------------------------------
+
+local is_chinese = false
+
+local TR = {
+    ["mLRS Configurator: Edit "] = "mLRS 配置器：编辑 ",
+    ["mLRS Configurator: Tools Page"] = "mLRS 配置器：工具页",
+    ["mLRS Configurator: Main Page"] = "mLRS 配置器：主页面",
+    ["Tx Power"] = "Tx 功率",
+    ["Tx Diversity"] = "Tx 分集",
+    ["Rx Power"] = "Rx 功率",
+    ["Rx Diversity"] = "Rx 分集",
+    ["ConfigId "] = "配置ID ",
+    ["not connected"] = "未连接",
+    ["Sensitivity"] = "灵敏度",
+    ["Bind Phrase"] = "绑定词",
+    ["Mode"] = "模式",
+    ["RF Band"] = "射频频段",
+    ["Ortho"] = "正交",
+    ["Privacy"] = "隐私",
+    ["Edit Tx"] = "编辑 Tx",
+    ["Edit Rx"] = "编辑 Rx",
+    ["Save"] = "保存",
+    ["Reload"] = "重新加载",
+    ["Bind"] = "对频",
+    ["Tools"] = "工具",
+    ["System Bootloader"] = "系统引导",
+    ["Flash ESP"] = "刷写 ESP",
+    ["Binding"] = "对频中",
+    ["In System Bootloader"] = "进入系统引导",
+    ["In Flash ESP"] = "刷写 ESP 中",
+    ["Save Parameters"] = "保存参数",
+    ["Receiver connected!"] = "接收机已连接！",
+    ["Receiver\nhas disconnected!"] = "接收机\n已断开！",
+    ["Please check if\nCRSF baudrate is 400k"] = "请检查\nCRSF 波特率是否为 400k",
+    ["Tx version not supported\nby this Lua script!"] = "Tx 版本不受\n此 Lua 脚本支持！",
+    ["Rx version not supported\nby this Lua script!"] = "Rx 版本不受\n此 Lua 脚本支持！",
+    [" parameters loading ..."] = " 参数加载中 ...",
+    ["Param Upload Errors"] = "参数上传错误",
+    ["Try Reload"] = "请尝试重新加载",
+    ["Language: "] = "语言：",
+    ["English"] = "English",
+    ["Chinese"] = "中文",
+    ["Tx param version smaller than Rx param version.\nPlease update Tx firmware!"] = "Tx 参数版本低于 Rx 参数版本。\n请更新 Tx 固件！",
+    ["Rx param version smaller than Tx param version.\nPlease update Rx firmware!"] = "Rx 参数版本低于 Tx 参数版本。\n请更新 Rx 固件！",
+    ["Cannot be run as a model script!"] = "不能作为模型脚本运行！",
+    ["mLRS not accessible: mBridge or CRSF not enabled!"] = "mLRS 不可访问：mBridge 或 CRSF 未启用！",
+    ["Unclear issue with mBridge or CRSF!"] = "mBridge 或 CRSF 存在不明问题！",
+}
+
+local function tr(s)
+    if is_chinese then
+        local t = TR[s]
+        if t ~= nil then return t end
+    end
+    return s
+end
+
+local function lang_name()
+    if is_chinese then return tr("Chinese") end
+    return tr("English")
+end
+
+
 -- experimental
 local paramLoadDeadTime_10ms = 300 -- 150 was a bit too short, also 200 was too short
 
@@ -727,7 +795,7 @@ local function doParamLoop()
                     -- Huston, we have a problem
                     DEVICE_PARAM_LIST_complete = false
                     DEVICE_PARAM_LIST_common_count = 0
-                    setPopupWTmo("Param Upload Errors ("..tostring(DEVICE_PARAM_LIST_errors)..")!\nTry Reload", 200)
+                    setPopupWTmo(tr("Param Upload Errors").." ("..tostring(DEVICE_PARAM_LIST_errors)..")!\n"..tr("Try Reload"), 200)
                 end
                 DEVICE_DOWNLOAD_is_running = false
             elseif index < 128 then
@@ -846,15 +914,19 @@ local function sendParamStore()
     if not DEVICE_PARAM_LIST_complete then return end -- needed here??
     cmdPush(MBRIDGE_CMD.PARAM_STORE, {})
     DEVICE_SAVE_t_last = getTime()
-    setPopupWTmo("Save Parameters", 250)
+    setPopupWTmo(tr("Save Parameters"), 250)
 end
 
+
+local BIND_TMO_10ms = 1000 -- 10 seconds until bind is automatically stopped
+local BIND_TEND_10ms = 0
 
 local function sendBind()
     --if not DEVICE_PARAM_LIST_complete then return end -- needed here??
     if DEVICE_DOWNLOAD_is_running then return end
     cmdPush(MBRIDGE_CMD.BIND_START, {})
-    setPopupBlocked("Binding")
+    setPopupBlocked(tr("Binding"))
+    BIND_TEND_10ms = getTime() + BIND_TMO_10ms
 end
 
 
@@ -862,7 +934,7 @@ local function sendBoot()
     --if not DEVICE_PARAM_LIST_complete then return end -- needed here??
     if DEVICE_DOWNLOAD_is_running then return end
     cmdPush(MBRIDGE_CMD.SYSTEM_BOOTLOADER, {})
-    setPopupBlocked("In System Bootloader")
+    setPopupBlocked(tr("In System Bootloader"))
 end
 
 
@@ -870,14 +942,21 @@ local function sendFlashEsp()
     --if not DEVICE_PARAM_LIST_complete then return end -- needed here??
     if DEVICE_DOWNLOAD_is_running then return end
     cmdPush(MBRIDGE_CMD.FLASH_ESP, {})
-    setPopupBlocked("In Flash ESP")
+    setPopupBlocked(tr("In Flash ESP"))
 end
 
 
 local function checkBind()
     if DEVICE_DOWNLOAD_is_running then return end
     if DEVICE_INFO ~= nil and DEVICE_INFO.has_status == 1 and DEVICE_INFO.binding == 1 then
-        setPopupBlocked("Binding")
+        setPopupBlocked(tr("Binding"))
+        if BIND_TEND_10ms > 0 and getTime() > BIND_TEND_10ms then
+            cmdPush(MBRIDGE_CMD.BIND_STOP, {})
+            BIND_TEND_10ms = 0
+            clearPopup()
+        end
+    else
+        BIND_TEND_10ms = 0
     end
 end
 
@@ -911,7 +990,8 @@ local IDX = {
     -- Page Tools, idxes of options on tools page
     Tools_Boot_idx = 0,
     Tools_FlashEsp_idx = 1,
-    TOOLS_CURSOR_IDX_MAX = 1,
+    Tools_Lang_idx = 2,
+    TOOLS_CURSOR_IDX_MAX = 2,
 }
 
 local CURSOR = {
@@ -1117,7 +1197,7 @@ end
 
 local function doPageEdit(event, page_str)
     lcd.drawFilledRectangle(0, 0, LAYOUT.W, 30, THEME.titleBgColor)
-    lcd.drawText(5, 5, "mLRS Configurator: Edit "..page_str, THEME.menuTitleColor)
+    lcd.drawText(5, 5, tr("mLRS Configurator: Edit ")..page_str, THEME.menuTitleColor)
 
     if event == EVT_VIRTUAL_EXIT and not CURSOR.edit then
         CURSOR.page_nr = PAGENR.MAIN
@@ -1163,15 +1243,17 @@ local function drawPageTools()
     local x, y;
 
     y = 60
-    lcd.drawText(10, y, "System Bootloader", cur_attr(IDX.Tools_Boot_idx))
+    lcd.drawText(10, y, tr("System Bootloader"), cur_attr(IDX.Tools_Boot_idx))
     y = y + LAYOUT.DY
-    lcd.drawText(10, y, "Flash ESP", cur_attr(IDX.Tools_FlashEsp_idx))
+    lcd.drawText(10, y, tr("Flash ESP"), cur_attr(IDX.Tools_FlashEsp_idx))
+    y = y + LAYOUT.DY
+    lcd.drawText(10, y, tr("Language: ")..lang_name(), cur_attr(IDX.Tools_Lang_idx))
 end
 
 
 local function doPageTools(event)
     lcd.drawFilledRectangle(0, 0, LAYOUT.W, 30, THEME.titleBgColor)
-    lcd.drawText(5, 5, "mLRS Configurator: Tools Page", THEME.menuTitleColor)
+    lcd.drawText(5, 5, tr("mLRS Configurator: Tools Page"), THEME.menuTitleColor)
 
     drawPageTools()
 
@@ -1184,6 +1266,13 @@ local function doPageTools(event)
             CURSOR.page_nr = PAGENR.MAIN
             CURSOR.idx = IDX.EditTx_idx
             sendFlashEsp()
+        elseif CURSOR.idx == IDX.Tools_Lang_idx then -- Language
+            is_chinese = not is_chinese
+            if model.setGlobalVariable ~= nil then
+                model.setGlobalVariable(8, 0, is_chinese and 1 or 0)
+            end
+            CURSOR.page_nr = PAGENR.MAIN
+            CURSOR.idx = IDX.EditTx_idx
         end
     elseif event == EVT_VIRTUAL_EXIT then
         CURSOR.page_nr = PAGENR.MAIN
@@ -1259,7 +1348,7 @@ local function drawPageMain()
         lcd.drawText(5+xofs, y, DEVICE_ITEM_TX.name, THEME.textColor+SMLSIZE)
         lcd.drawText(5+xofs, y+yofs, DEVICE_ITEM_TX.version_str, THEME.textColor+SMLSIZE)
         if DEVICE_INFO ~= nil then
-            lcd.drawText(5+xofs, y+2*yofs, "ConfigId "..tostring(DEVICE_INFO.tx_config_id), THEME.textColor+SMLSIZE)
+            lcd.drawText(5+xofs, y+2*yofs, tr("ConfigId ")..tostring(DEVICE_INFO.tx_config_id), THEME.textColor+SMLSIZE)
         end
     end
 
@@ -1267,7 +1356,7 @@ local function drawPageMain()
     if not DEVICE_PARAM_LIST_complete then
         -- don't do anything
     elseif not connected then
-        lcd.drawText(LAYOUT.W_HALF+xofs, y, "not connected", THEME.textColor)
+        lcd.drawText(LAYOUT.W_HALF+xofs, y, tr("not connected"), THEME.textColor)
     elseif DEVICE_ITEM_RX == nil then
         lcd.drawText(LAYOUT.W_HALF+xofs, y, "---", THEME.textColor)
     else
@@ -1278,11 +1367,11 @@ local function drawPageMain()
     local version_error = false
     if DEVICE_ITEM_TX ~= nil and DEVICE_ITEM_TX.version_int < VERSION.required_tx_version_int then
         version_error = true
-        POPUP.text = "Tx version not supported\nby this Lua script!"
+        POPUP.text = tr("Tx version not supported\nby this Lua script!")
     end
     if DEVICE_ITEM_RX ~= nil and connected and DEVICE_ITEM_RX.version_int < VERSION.required_rx_version_int then
         version_error = true
-        POPUP.text = "Rx version not supported\nby this Lua script!"
+        POPUP.text = tr("Rx version not supported\nby this Lua script!")
     end
     if version_error then
         drawPopup()
@@ -1290,7 +1379,7 @@ local function drawPageMain()
     end
 
     y = LAYOUT.COMMON_Y
-    lcd.drawText(10, y, "Bind Phrase", THEME.textColor)
+    lcd.drawText(10, y, tr("Bind Phrase"), THEME.textColor)
     if DEVICE_PARAM_LIST_complete then
         local x = 10 + LAYOUT.PARAM_VALUE_DX-10
         for i = 1,6 do
@@ -1306,7 +1395,7 @@ local function drawPageMain()
     end
 
     y = y + LAYOUT.DY
-    lcd.drawText(10, y, "Mode", THEME.textColor)
+    lcd.drawText(10, y, tr("Mode"), THEME.textColor)
     if DEVICE_PARAM_LIST_complete then
         local p = DEVICE_PARAM_LIST[1] -- param_idx = 1 = Mode
         if p.options[p.value+1] ~= nil then
@@ -1315,7 +1404,7 @@ local function drawPageMain()
     end
 
     y = y + LAYOUT.DY
-    lcd.drawText(10, y, "RF Band", THEME.textColor)
+    lcd.drawText(10, y, tr("RF Band"), THEME.textColor)
     if DEVICE_PARAM_LIST_complete then
         local p = DEVICE_PARAM_LIST[2] -- param_idx = 2 = RfBand
         if p.options[p.value+1] ~= nil then
@@ -1332,7 +1421,7 @@ local function drawPageMain()
     if THEME.screenSize == 320240 then y = y + 2*LAYOUT.DY end -- not to the right, but continue
 
     if DEVICE_PARAM_LIST_complete and DEVICE_PARAM_LIST[3].allowed_mask > 0 then
-        lcd.drawText(LAYOUT.PARAM_RIGHT_X, y, "Ortho", THEME.textColor)
+        lcd.drawText(LAYOUT.PARAM_RIGHT_X, y, tr("Ortho"), THEME.textColor)
         local p = DEVICE_PARAM_LIST[3] -- param_idx = 3 = RfOrtho
         if p.options[p.value+1] ~= nil then
             lcd.drawText(LAYOUT.PARAM_RIGHT_X+LAYOUT.PARAM_VALUE_DX-60, y, p.options[p.value+1], cur_attr_p(IDX.RFOrtho_idx,3))
@@ -1341,7 +1430,7 @@ local function drawPageMain()
     end
 
     if DEVICE_PARAM_LIST_complete and DEVICE_PARAM_LIST_common_count > 4 and DEVICE_PARAM_LIST[4].allowed_mask > 0 then
-        lcd.drawText(LAYOUT.PARAM_RIGHT_X, y, "Privacy", THEME.textColor)
+        lcd.drawText(LAYOUT.PARAM_RIGHT_X, y, tr("Privacy"), THEME.textColor)
         local p = DEVICE_PARAM_LIST[4] -- param_idx = 4 = Privacy
         if p.options[p.value+1] ~= nil then
             lcd.drawText(LAYOUT.PARAM_RIGHT_X+LAYOUT.PARAM_VALUE_DX-60, y, p.options[p.value+1], cur_attr_p(IDX.Privacy_idx,4))
@@ -1350,16 +1439,16 @@ local function drawPageMain()
     end
 
     y = LAYOUT.BUTTONS_Y
-    lcd.drawText(LAYOUT.EDIT_TX_X, y, "Edit Tx", cur_attr(IDX.EditTx_idx))
+    lcd.drawText(LAYOUT.EDIT_TX_X, y, tr("Edit Tx"), cur_attr(IDX.EditTx_idx))
     if not connected then
-        lcd.drawText(LAYOUT.EDIT_RX_X, y, "Edit Rx", THEME.textDisableColor)
+        lcd.drawText(LAYOUT.EDIT_RX_X, y, tr("Edit Rx"), THEME.textDisableColor)
     else
-        lcd.drawText(LAYOUT.EDIT_RX_X, y, "Edit Rx", cur_attr(IDX.EditRx_idx))
+        lcd.drawText(LAYOUT.EDIT_RX_X, y, tr("Edit Rx"), cur_attr(IDX.EditRx_idx))
     end
-    lcd.drawText(LAYOUT.SAVE_X, y, "Save", cur_attr(IDX.Save_idx))
-    lcd.drawText(LAYOUT.RELOAD_X, y, "Reload", cur_attr(IDX.Reload_idx))
-    lcd.drawText(LAYOUT.BIND_X, y, "Bind", cur_attr(IDX.Bind_idx))
-    lcd.drawText(LAYOUT.TOOLS_X, y, "Tools", cur_attr(IDX.Tools_idx))
+    lcd.drawText(LAYOUT.SAVE_X, y, tr("Save"), cur_attr(IDX.Save_idx))
+    lcd.drawText(LAYOUT.RELOAD_X, y, tr("Reload"), cur_attr(IDX.Reload_idx))
+    lcd.drawText(LAYOUT.BIND_X, y, tr("Bind"), cur_attr(IDX.Bind_idx))
+    lcd.drawText(LAYOUT.TOOLS_X, y, tr("Tools"), cur_attr(IDX.Tools_idx))
 
     -- show overview of some selected parameters
     y = LAYOUT.INFO_Y
@@ -1371,8 +1460,8 @@ local function drawPageMain()
         return
     end
 
-    lcd.drawText(LAYOUT.INFO_LEFT_X, y, "Tx Power", THEME.textColor)
-    lcd.drawText(LAYOUT.INFO_LEFT_X, y+LAYOUT.INFO_DY, "Tx Diversity", THEME.textColor)
+    lcd.drawText(LAYOUT.INFO_LEFT_X, y, tr("Tx Power"), THEME.textColor)
+    lcd.drawText(LAYOUT.INFO_LEFT_X, y+LAYOUT.INFO_DY, tr("Tx Diversity"), THEME.textColor)
     if DEVICE_INFO ~= nil then
         lcd.drawText(LAYOUT.INFO_LEFT_VAL_X, y, tostring(DEVICE_INFO.tx_power_dbm).." dBm", THEME.textColor)
         if DEVICE_INFO.tx_diversity <= #diversity_list then
@@ -1389,8 +1478,8 @@ local function drawPageMain()
     if not connected then
         rx_attr = THEME.textDisableColor
     end
-    lcd.drawText(LAYOUT.INFO_RIGHT_X, y, "Rx Power", rx_attr)
-    lcd.drawText(LAYOUT.INFO_RIGHT_X, y+LAYOUT.INFO_DY, "Rx Diversity", rx_attr)
+    lcd.drawText(LAYOUT.INFO_RIGHT_X, y, tr("Rx Power"), rx_attr)
+    lcd.drawText(LAYOUT.INFO_RIGHT_X, y+LAYOUT.INFO_DY, tr("Rx Diversity"), rx_attr)
     if DEVICE_INFO ~= nil and connected then
         lcd.drawText(LAYOUT.INFO_RIGHT_VALUE_X, y, tostring(DEVICE_INFO.rx_power_dbm).." dBm", rx_attr)
         if DEVICE_INFO.rx_diversity <= #diversity_list then
@@ -1404,7 +1493,7 @@ local function drawPageMain()
     end
 
     y = y + 2*LAYOUT.INFO_DY
-    lcd.drawText(LAYOUT.INFO_LEFT_X, y, "Sensitivity", THEME.textColor)
+    lcd.drawText(LAYOUT.INFO_LEFT_X, y, tr("Sensitivity"), THEME.textColor)
     if DEVICE_INFO ~= nil then
         lcd.drawText(LAYOUT.INFO_LEFT_VAL_X, y, tostring(DEVICE_INFO.receiver_sensitivity).." dBm", THEME.textColor)
     else
@@ -1415,9 +1504,9 @@ local function drawPageMain()
     if DEVICE_ITEM_TX ~= nil and DEVICE_ITEM_RX ~= nil and connected and DEVICE_PARAM_LIST_complete and
            (DEVICE_ITEM_TX.setuplayout_int > 515 or DEVICE_ITEM_RX.setuplayout_int > 515) then -- 515 is old 335
         if DEVICE_ITEM_TX.setuplayout_int < DEVICE_ITEM_RX.setuplayout_int then
-            drawSetuplayoutWarning("Tx param version smaller than Rx param version.\nPlease update Tx firmware!")
+            drawSetuplayoutWarning(tr("Tx param version smaller than Rx param version.\nPlease update Tx firmware!"))
         elseif DEVICE_ITEM_RX.setuplayout_int < DEVICE_ITEM_TX.setuplayout_int then
-            drawSetuplayoutWarning("Rx param version smaller than Tx param version.\nPlease update Rx firmware!")
+            drawSetuplayoutWarning(tr("Rx param version smaller than Tx param version.\nPlease update Rx firmware!"))
         end
     end
 end
@@ -1425,7 +1514,7 @@ end
 
 local function doPageMain(event)
     lcd.drawFilledRectangle(0, 0, LAYOUT.W, 30, THEME.titleBgColor)
-    lcd.drawText(5, 5, "mLRS Configurator: Main Page", THEME.menuTitleColor)
+    lcd.drawText(5, 5, tr("mLRS Configurator: Main Page"), THEME.menuTitleColor)
     lcd.drawText(LAYOUT.W-1, 0, VERSION.script, THEME.menuTitleColor+TINSIZE+RIGHT)
 
     if not CURSOR.edit then
@@ -1526,11 +1615,11 @@ local function Do(event)
 
     if has_connected then
         clearParams()
-        if not POPUP.active then setPopupWTmo("Receiver connected!", 100) end
+        if not POPUP.active then setPopupWTmo(tr("Receiver connected!"), 100) end
         clearPopupIfBlocked()
     end
     if has_disconnected then
-        if not POPUP.active then setPopupWTmo("Receiver\nhas disconnected!", 100) end
+        if not POPUP.active then setPopupWTmo(tr("Receiver\nhas disconnected!"), 100) end
     end
     if not connected and CURSOR.page_nr == PAGENR.EDIT_RX then
         CURSOR.page_nr = PAGENR.MAIN
@@ -1542,7 +1631,7 @@ local function Do(event)
     if DEVICE_PARAM_LIST == nil then -- DEVICE_INFO not yet received
         if isFirstParamDownload and FirstParamDownloadTmo_10ms > 0 then
             if getTime() > FirstParamDownloadTmo_10ms then
-                setPopupError("Please check if\nCRSF baudrate is 400k")
+                setPopupError(tr("Please check if\nCRSF baudrate is 400k"))
                 FirstParamDownloadTmo_10ms = 0 -- disable
             end
         end
@@ -1579,6 +1668,11 @@ local function scriptInit()
     setupColors()
     setupBridge()
 
+    -- read the language selection from Global Variable 9 (flight mode 0)
+    if model.getGlobalVariable ~= nil then
+        is_chinese = (model.getGlobalVariable(8, 0) == 1)
+    end
+
     local tnow_10ms = getTime()
 
     DEVICE_DOWNLOAD_is_running = true -- we start the script with this
@@ -1594,18 +1688,18 @@ end
 
 local function scriptRun(event)
     if event == nil then
-        error("Cannot be run as a model script!")
+        error(tr("Cannot be run as a model script!"))
         return 2
     end
     if mbridge == nil or not mbridge.enabled() then
         if model.getModule(0).Type ~= 5 and model.getModule(1).Type ~= 5 then
-            error("mLRS not accessible: mBridge or CRSF not enabled!")
+            error(tr("mLRS not accessible: mBridge or CRSF not enabled!"))
             return 2
         end
     end
 
     if isConnected == nil or cmdPush == nil or cmdPop == nil then --just to be sure for sure
-        error("Unclear issue with mBridge or CRSF!")
+        error(tr("Unclear issue with mBridge or CRSF!"))
         return 2
     end
 
